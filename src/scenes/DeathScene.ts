@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { GAME_WIDTH, GAME_HEIGHT } from "../config";
 import { load, recordRun } from "../persist/LocalSave";
+import { hasTouch } from "../ui/touchState";
 import type { RunResult } from "./RunScene";
 
 export class DeathScene extends Phaser.Scene {
@@ -74,14 +75,25 @@ export class DeathScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     const nameText = this.add
-      .text(cx, cy + 76, this.nickname || "_", {
+      .text(cx, cy + 76, this.nickname || "tap to type", {
         fontFamily: "monospace",
         fontSize: "20px",
         color: "#eae6d5",
         backgroundColor: "rgba(255,255,255,0.06)",
         padding: { x: 14, y: 6 },
       })
-      .setOrigin(0.5);
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
+
+    // 触屏：点昵称框 → 弹出 native prompt
+    const promptNick = () => {
+      const v = window.prompt("nickname (max 16)", this.nickname);
+      if (v != null) {
+        this.nickname = v.replace(/[^A-Za-z0-9_\- ]/g, "").slice(0, 16);
+        nameText.setText(this.nickname || "tap to type");
+      }
+    };
+    nameText.on("pointerdown", promptNick);
 
     this.input.keyboard?.on("keydown", (e: KeyboardEvent) => {
       if (e.key === "Backspace") {
@@ -95,17 +107,44 @@ export class DeathScene extends Phaser.Scene {
       } else if (e.key.length === 1 && /^[A-Za-z0-9_\- ]$/.test(e.key) && this.nickname.length < 16) {
         this.nickname += e.key;
       }
-      nameText.setText(this.nickname || "_");
+      nameText.setText(this.nickname || "tap to type");
     });
 
-    // 按钮提示
-    this.add
-      .text(cx, GAME_HEIGHT - 60, "ENTER  retry          ESC  menu", {
+    // 触屏：底部两个大按钮
+    const retryBtn = this.add
+      .text(cx - 90, GAME_HEIGHT - 60, "  RETRY  ", {
         fontFamily: "monospace",
-        fontSize: "13px",
-        color: "#8a8576",
+        fontSize: "18px",
+        color: "#0b0a14",
+        backgroundColor: "#f4b03c",
+        padding: { x: 18, y: 10 },
       })
-      .setOrigin(0.5);
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
+    retryBtn.on("pointerup", () => this.confirm(result));
+
+    const menuBtn = this.add
+      .text(cx + 90, GAME_HEIGHT - 60, "  MENU  ", {
+        fontFamily: "monospace",
+        fontSize: "18px",
+        color: "#eae6d5",
+        backgroundColor: "rgba(255,255,255,0.08)",
+        padding: { x: 18, y: 10 },
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
+    menuBtn.on("pointerup", () => this.scene.start("Menu"));
+
+    // 触屏提示
+    if (hasTouch()) {
+      this.add
+        .text(cx, GAME_HEIGHT - 100, "tap nickname above to edit", {
+          fontFamily: "monospace",
+          fontSize: "11px",
+          color: "#8a8576",
+        })
+        .setOrigin(0.5);
+    }
 
     this.tweens.add({
       targets: nameText,

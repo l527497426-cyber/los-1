@@ -1,6 +1,8 @@
 import Phaser from "phaser";
 import { GAME_WIDTH, COLOR, PLAYER, SCORE } from "../config";
 import type { RunScene } from "./RunScene";
+import { TouchControls } from "../ui/TouchControls";
+import { hasTouch } from "../ui/touchState";
 
 interface HudData {
   run: RunScene;
@@ -47,6 +49,11 @@ export class HudScene extends Phaser.Scene {
     run.events.on("hp", (hp: number) => this.updateHp(hp));
     run.events.on("distance", (d: number) => this.updateDist(d));
     run.events.on("dust", (n: number) => this.updateDust(n));
+
+    // 触屏控件（只在检测到触屏设备时显示）
+    if (hasTouch()) {
+      new TouchControls(this);
+    }
 
     this.events.once("shutdown", () => {
       run.events.off("hp");

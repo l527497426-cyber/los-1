@@ -18,6 +18,10 @@ const config: Phaser.Types.Core.GameConfig = {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
+  input: {
+    activePointers: 4,
+    touch: { capture: true },
+  },
   physics: {
     default: "arcade",
     arcade: {

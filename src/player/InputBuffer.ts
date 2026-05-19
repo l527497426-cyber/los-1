@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { PLAYER } from "../config";
+import { touchState } from "../ui/touchState";
 
 // 所有按键的状态都在这里。Controller 只读这个。
 // 每帧从 cursor / WASD / 自定义键采样。
@@ -73,18 +74,27 @@ export class InputBuffer {
   poll(): void {
     const s = this.state;
 
-    s.leftHeld = this.cursors.left.isDown || this.keyA.isDown;
-    s.rightHeld = this.cursors.right.isDown || this.keyD.isDown;
-    s.downHeld = this.cursors.down.isDown || this.keyS.isDown;
+    s.leftHeld = this.cursors.left.isDown || this.keyA.isDown || touchState.left;
+    s.rightHeld = this.cursors.right.isDown || this.keyD.isDown || touchState.right;
+    s.downHeld = this.cursors.down.isDown || this.keyS.isDown || touchState.down;
 
-    const jumpNow = this.cursors.up.isDown || this.keyW.isDown || this.keyJump.isDown;
+    const jumpNow =
+      this.cursors.up.isDown || this.keyW.isDown || this.keyJump.isDown || touchState.jumpHeld;
     const dashNow = this.keyShift.isDown;
     const bashNow = this.keyBashX.isDown || this.keyBashJ.isDown;
 
+    // 触屏的脉冲（一次性）
+    const dashPulseFromTouch = touchState.dashPressed;
+    const bashPulseFromTouch = touchState.bashPressed;
+    const jumpPulseFromTouch = touchState.jumpPressed;
+    touchState.jumpPressed = false;
+    touchState.dashPressed = false;
+    touchState.bashPressed = false;
+
     s.jumpHeld = jumpNow;
-    s.jumpPressedThisFrame = jumpNow && !this.prevJump;
-    s.dashPressedThisFrame = dashNow && !this.prevDash;
-    s.bashPressedThisFrame = bashNow && !this.prevBash;
+    s.jumpPressedThisFrame = (jumpNow && !this.prevJump) || jumpPulseFromTouch;
+    s.dashPressedThisFrame = (dashNow && !this.prevDash) || dashPulseFromTouch;
+    s.bashPressedThisFrame = (bashNow && !this.prevBash) || bashPulseFromTouch;
 
     this.prevJump = jumpNow;
     this.prevDash = dashNow;

@@ -71,9 +71,9 @@ export class MenuScene extends Phaser.Scene {
       )
       .setOrigin(0.5);
 
-    // 开始按钮
+    // 开始按钮（兼容触屏：整屏可点）
     const startBtn = this.add
-      .text(cx, GAME_HEIGHT * 0.85, "▸ PRESS  SPACE  TO  START", {
+      .text(cx, GAME_HEIGHT * 0.85, "▸ TAP  /  PRESS  SPACE  TO  START", {
         fontFamily: "monospace",
         fontSize: "16px",
         color: "#f4b03c",
