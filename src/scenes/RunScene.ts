@@ -1,0 +1,263 @@
+import Phaser from "phaser";
+import { GAME_WIDTH, GAME_HEIGHT, TILE, RUN, COLOR, SCORE, PLAYER } from "../config";
+import { Player } from "../player/Player";
+import { Generator } from "../procgen/Generator";
+import { makeSeed } from "../procgen/rng";
+import { Terrain } from "../world/Terrain";
+import { Pickups, type PickupSprite } from "../world/Pickups";
+import { EnemyManager, Kobold } from "../enemies/Kobold";
+
+export interface RunResult {
+  distanceM: number;
+  dustScore: number;
+  totalScore: number;
+  seed: number;
+}
+
+export class RunScene extends Phaser.Scene {
+  private player!: Player;
+  private generator!: Generator;
+  private terrain!: Terrain;
+  private pickups!: Pickups;
+  private enemies!: EnemyManager;
+
+  private seed: number = 0;
+  private dustScore = 0;
+  private maxDistanceTiles = 0;
+  private startTileX = 0;
+  private dead = false;
+
+  // 背景层（简单视差，纯色 + 横向渐变）
+  private bgFar?: Phaser.GameObjects.Rectangle;
+  private bgMid?: Phaser.GameObjects.TileSprite;
+
+  constructor() {
+    super("Run");
+  }
+
+  create(): void {
+    this.dead = false;
+    this.dustScore = 0;
+    this.seed = makeSeed();
+
+    // 物理世界横向无界，纵向给个上下范围
+    this.physics.world.setBounds(-1000, -2000, 1_000_000, 4000);
+
+    // 简单背景
+    this.cameras.main.setBackgroundColor(COLOR.bgSky);
+    this.bgFar = this.add
+      .rectangle(0, GAME_HEIGHT * 0.7, GAME_WIDTH * 4, GAME_HEIGHT, COLOR.bgFar)
+      .setOrigin(0, 0)
+      .setScrollFactor(0.15, 0)
+      .setDepth(0);
+    // 中景：用一个矩形带条纹模拟远山
+    this.bgMid = this.add
+      .tileSprite(0, GAME_HEIGHT * 0.55, GAME_WIDTH, GAME_HEIGHT * 0.45, "px")
+      .setOrigin(0, 0)
+      .setScrollFactor(0.35, 0)
+      .setTint(COLOR.bgMid)
+      .setAlpha(0.6)
+      .setDepth(1);
+
+    // 世界
+    this.terrain = new Terrain(this);
+    this.pickups = new Pickups(this);
+    this.enemies = new EnemyManager(this);
+    this.generator = new Generator({ seed: this.seed });
+
+    // 先放一段确保起点能跑
+    const initial = this.generator.ensureUpTo(40);
+    for (const p of initial) {
+      this.terrain.buildChunk(p);
+      this.pickups.buildChunk(p);
+      this.enemies.buildChunk(p);
+    }
+
+    // 玩家：放在起点 chunk 入口位置
+    const firstChunk = initial[0]!;
+    this.startTileX = firstChunk.originTileX;
+    const px = RUN.startPlayerX;
+    const py = firstChunk.template.entryY * TILE - PLAYER.height;
+    this.player = new Player(this, px, py);
+
+    // 碰撞
+    this.physics.add.collider(this.player, this.terrain.stones);
+    this.physics.add.collider(this.enemies.group, this.terrain.stones);
+
+    // 尖刺：重叠即扣血
+    this.physics.add.overlap(this.player, this.terrain.spikes, (_p, spike) => {
+      const s = spike as Phaser.GameObjects.GameObject & { x: number };
+      this.player.takeHit(s.x);
+      if (!this.player.alive) this.die();
+    });
+
+    // 拾取
+    this.physics.add.overlap(this.player, this.pickups.group, (_p, raw) => {
+      const item = raw as PickupSprite;
+      if (!item.active) return;
+      if (item.kind === "dust") {
+        this.dustScore += 1;
+        this.events.emit("dust", this.dustScore);
+        this.popPickup(item.x, item.y, COLOR.dust);
+      } else if (item.kind === "heart") {
+        this.player.heal(1);
+        this.events.emit("hp", this.player.hp);
+        this.popPickup(item.x, item.y, COLOR.heart);
+      }
+      item.destroy();
+    });
+
+    // 玩家 vs 敌人
+    this.physics.add.overlap(this.player, this.enemies.group, (_p, e) => {
+      const k = e as Kobold;
+      if (!k.alive) return;
+      // 从上方踩：消灭敌人 + 反弹
+      const playerBody = this.player.body as Phaser.Physics.Arcade.Body;
+      const kBody = k.body as Phaser.Physics.Arcade.Body;
+      if (playerBody.velocity.y > 50 && this.player.y < k.y - 6) {
+        k.defeat();
+        playerBody.velocity.y = -320;
+        this.dustScore += 3;
+        this.events.emit("dust", this.dustScore);
+        this.popPickup(k.x, k.y, COLOR.kobold);
+      } else {
+        const hit = this.player.takeHit(kBody.position.x + kBody.halfWidth);
+        if (hit) this.events.emit("hp", this.player.hp);
+        if (!this.player.alive) this.die();
+      }
+    });
+
+    // 摄像机
+    this.cameras.main.startFollow(this.player, true, RUN.cameraLerp, RUN.cameraLerp);
+    this.cameras.main.setLerp(RUN.cameraLerp, RUN.cameraLerp);
+    this.cameras.main.setFollowOffset(-RUN.cameraLeadX, 40);
+    this.cameras.main.setDeadzone(40, 80);
+
+    // HUD
+    this.scene.launch("Hud", { run: this });
+    this.events.emit("hp", this.player.hp);
+    this.events.emit("distance", 0);
+    this.events.emit("dust", 0);
+
+    // Debug
+    if (new URLSearchParams(location.search).has("debug")) {
+      this.installDebugOverlay();
+    }
+  }
+
+  override update(time: number, delta: number): void {
+    if (this.dead) return;
+
+    // 玩家可 Bash 目标：所有活的敌人 + 之后可加投射物 / bash anchor
+    this.player.bashCandidates = [];
+    this.enemies.group.children.iterate((c) => {
+      const k = c as Kobold;
+      if (k.active && k.alive) {
+        this.player.bashCandidates.push({
+          obj: k as unknown as Phaser.GameObjects.GameObject & {
+            x: number;
+            y: number;
+            body?: Phaser.Physics.Arcade.Body | null;
+          },
+        });
+      }
+      return true;
+    });
+
+    this.player.update(time, delta);
+    this.enemies.update();
+    this.pickups.update(time);
+
+    // 生成 / 卸载
+    const camRight = this.cameras.main.scrollX + GAME_WIDTH + GAME_WIDTH; // 前方 1 屏 buffer
+    const camLeft = this.cameras.main.scrollX - GAME_WIDTH;
+    const targetTileX = Math.ceil(camRight / TILE);
+    const leftTileX = Math.floor(camLeft / TILE);
+    const newChunks = this.generator.ensureUpTo(targetTileX);
+    for (const p of newChunks) {
+      this.terrain.buildChunk(p);
+      this.pickups.buildChunk(p);
+      this.enemies.buildChunk(p);
+    }
+    const removed = this.generator.unloadBefore(leftTileX);
+    for (const p of removed) {
+      this.terrain.unloadChunk(p);
+      this.pickups.unloadChunk(p);
+      this.enemies.unloadChunk(p);
+    }
+
+    // 距离推进
+    const currentTileX = Math.floor(this.player.x / TILE);
+    const reached = Math.max(0, currentTileX - this.startTileX);
+    if (reached > this.maxDistanceTiles) {
+      this.maxDistanceTiles = reached;
+      this.events.emit("distance", reached);
+    }
+
+    // 摔死
+    if (this.player.y > RUN.deathFallY) {
+      this.player.alive = false;
+      this.player.hp = 0;
+      this.die();
+    }
+
+    // 视差刷新
+    if (this.bgMid) this.bgMid.tilePositionX = this.cameras.main.scrollX * 0.35;
+  }
+
+  private popPickup(x: number, y: number, color: number): void {
+    const c = this.add.circle(x, y, 4, color, 1).setDepth(40);
+    this.tweens.add({
+      targets: c,
+      scale: 2.5,
+      alpha: 0,
+      duration: 280,
+      ease: "Quad.easeOut",
+      onComplete: () => c.destroy(),
+    });
+  }
+
+  private die(): void {
+    if (this.dead) return;
+    this.dead = true;
+    this.cameras.main.shake(280, 0.012);
+    this.cameras.main.flash(180, 196, 69, 48);
+    this.time.delayedCall(900, () => {
+      const result: RunResult = {
+        distanceM: this.maxDistanceTiles,
+        dustScore: this.dustScore,
+        totalScore: this.maxDistanceTiles + Math.floor(this.dustScore * SCORE.dustValue * 2),
+        seed: this.seed,
+      };
+      this.scene.stop("Hud");
+      this.scene.start("Death", result);
+    });
+  }
+
+  private installDebugOverlay(): void {
+    const text = this.add
+      .text(8, 8, "", {
+        fontFamily: "monospace",
+        fontSize: "11px",
+        color: "#7be0d6",
+        backgroundColor: "rgba(0,0,0,0.4)",
+        padding: { x: 4, y: 2 },
+      })
+      .setScrollFactor(0)
+      .setDepth(100);
+    this.events.on("update", () => {
+      if (!this.player) return;
+      const b = this.player.body as Phaser.Physics.Arcade.Body;
+      text.setText(
+        [
+          `state: ${this.player.controller.stateName}`,
+          `vx: ${b.velocity.x.toFixed(0)}  vy: ${b.velocity.y.toFixed(0)}`,
+          `blocked  L:${b.blocked.left ? 1 : 0} R:${b.blocked.right ? 1 : 0} D:${b.blocked.down ? 1 : 0}`,
+          `hp: ${this.player.hp}  iframes: ${this.player.iframesLeft}`,
+          `dist: ${this.maxDistanceTiles}m  dust: ${this.dustScore}`,
+          `seed: ${this.seed.toString(36)}`,
+        ].join("\n"),
+      );
+    });
+  }
+}

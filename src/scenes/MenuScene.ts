@@ -1,0 +1,97 @@
+import Phaser from "phaser";
+import { GAME_WIDTH, GAME_HEIGHT, COLOR } from "../config";
+import { load } from "../persist/LocalSave";
+
+export class MenuScene extends Phaser.Scene {
+  constructor() {
+    super("Menu");
+  }
+
+  create(): void {
+    const cx = GAME_WIDTH / 2;
+    const save = load();
+
+    // 背景渐变（简）
+    const bg = this.add.graphics();
+    bg.fillGradientStyle(COLOR.bgSky, COLOR.bgSky, COLOR.bgNear, COLOR.bgMid, 1);
+    bg.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+    // 标题
+    this.add
+      .text(cx, GAME_HEIGHT * 0.32, "FANCY FLAME", {
+        fontFamily: "Georgia, serif",
+        fontSize: "64px",
+        color: "#f4b03c",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5);
+
+    this.add
+      .text(cx, GAME_HEIGHT * 0.32 + 56, "one endless run · D&D embers", {
+        fontFamily: "Georgia, serif",
+        fontSize: "16px",
+        color: "#8a8576",
+        fontStyle: "italic",
+      })
+      .setOrigin(0.5);
+
+    // 最高分
+    if (save.bestDistance > 0) {
+      this.add
+        .text(
+          cx,
+          GAME_HEIGHT * 0.55,
+          `best  ${Math.floor(save.bestDistance)} m   ·   score ${Math.floor(save.bestTotalScore)}`,
+          {
+            fontFamily: "monospace",
+            fontSize: "14px",
+            color: "#eae6d5",
+          },
+        )
+        .setOrigin(0.5);
+    }
+
+    // 操作说明
+    this.add
+      .text(
+        cx,
+        GAME_HEIGHT * 0.68,
+        [
+          "← →   move        SPACE   jump (double)",
+          "SHIFT  dash        DOWN    glide",
+          "X / J  bash        cling to walls auto",
+        ].join("\n"),
+        {
+          fontFamily: "monospace",
+          fontSize: "13px",
+          color: "#8a8576",
+          align: "center",
+          lineSpacing: 4,
+        },
+      )
+      .setOrigin(0.5);
+
+    // 开始按钮
+    const startBtn = this.add
+      .text(cx, GAME_HEIGHT * 0.85, "▸ PRESS  SPACE  TO  START", {
+        fontFamily: "monospace",
+        fontSize: "16px",
+        color: "#f4b03c",
+      })
+      .setOrigin(0.5);
+
+    this.tweens.add({
+      targets: startBtn,
+      alpha: { from: 1, to: 0.4 },
+      duration: 800,
+      yoyo: true,
+      repeat: -1,
+      ease: "Sine.easeInOut",
+    });
+
+    const start = () => this.scene.start("Run");
+    this.input.keyboard?.once("keydown-SPACE", start);
+    this.input.keyboard?.once("keydown-ENTER", start);
+    this.input.once("pointerdown", start);
+  }
+}
