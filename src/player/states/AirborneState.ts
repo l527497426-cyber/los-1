@@ -28,7 +28,7 @@ export class AirborneState implements PlayerState {
       if (input.wallCoyoteLeft > 0 && input.wallCoyoteSide !== 0) {
         // 墙跳（grace）
         this.ctx.body.velocity.x = -input.wallCoyoteSide * PLAYER.wallJumpVelX;
-        this.ctx.doJump(PLAYER.wallJumpVelY);
+        this.ctx.doJump(PLAYER.wallJumpVelY, "wallJump");
         this.ctx.wallJumpLockLeft = PLAYER.wallJumpLockFrames;
         input.wallCoyoteLeft = 0;
         input.wallCoyoteSide = 0;
@@ -36,13 +36,13 @@ export class AirborneState implements PlayerState {
         return;
       }
       if (input.coyoteLeft > 0) {
-        this.ctx.doJump(PLAYER.jumpVel);
+        this.ctx.doJump(PLAYER.jumpVel, "jump");
         input.coyoteLeft = 0;
         return;
       }
       if (!this.ctx.airDoubleJumpUsed) {
         this.ctx.airDoubleJumpUsed = true;
-        this.ctx.doJump(PLAYER.doubleJumpVel);
+        this.ctx.doJump(PLAYER.doubleJumpVel, "doubleJump");
         return;
       }
     }

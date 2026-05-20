@@ -15,7 +15,7 @@ export class GlideState implements PlayerState {
     // 二段跳允许从滑翔中触发
     if (this.ctx.player.inputBuffer.consumeJump() && !this.ctx.airDoubleJumpUsed) {
       this.ctx.airDoubleJumpUsed = true;
-      this.ctx.doJump(PLAYER.doubleJumpVel);
+      this.ctx.doJump(PLAYER.doubleJumpVel, "doubleJump");
       this.ctx.transition("Airborne");
       return;
     }

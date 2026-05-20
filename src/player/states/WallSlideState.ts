@@ -38,7 +38,7 @@ export class WallSlideState implements PlayerState {
     // 墙跳
     if (this.ctx.player.inputBuffer.consumeJump()) {
       this.ctx.body.velocity.x = -this.side * PLAYER.wallJumpVelX;
-      this.ctx.doJump(PLAYER.wallJumpVelY);
+      this.ctx.doJump(PLAYER.wallJumpVelY, "wallJump");
       this.ctx.wallJumpLockLeft = PLAYER.wallJumpLockFrames;
       this.ctx.player.setFacing(-this.side === 1 ? 1 : -1);
       this.ctx.transition("Airborne");

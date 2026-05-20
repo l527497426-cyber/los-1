@@ -6,6 +6,27 @@ import { makeSeed } from "../procgen/rng";
 import { Terrain } from "../world/Terrain";
 import { Pickups, type PickupSprite } from "../world/Pickups";
 import { EnemyManager, Kobold } from "../enemies/Kobold";
+import { Juice } from "../fx/Juice";
+import { Sfx } from "../fx/Sfx";
+import { BiomeController } from "../world/Biome";
+import { load, save } from "../persist/LocalSave";
+
+interface FxStateEvent {
+  prev: string;
+  next: string;
+  x: number;
+  y: number;
+  vy: number;
+}
+interface FxJumpEvent {
+  kind: "jump" | "doubleJump" | "wallJump";
+  x: number;
+  y: number;
+}
+interface FxPointEvent {
+  x: number;
+  y: number;
+}
 
 export interface RunResult {
   distanceM: number;
@@ -20,12 +41,15 @@ export class RunScene extends Phaser.Scene {
   private terrain!: Terrain;
   private pickups!: Pickups;
   private enemies!: EnemyManager;
+  private juice!: Juice;
+  private biome!: BiomeController;
 
   private seed: number = 0;
   private dustScore = 0;
   private maxDistanceTiles = 0;
   private startTileX = 0;
   private dead = false;
+  private mutedVolume = 0;          // 静音前的音量，用于 M 键还原
 
   // 背景层（简单视差，纯色 + 横向渐变）
   private bgFar?: Phaser.GameObjects.Rectangle;
@@ -59,6 +83,19 @@ export class RunScene extends Phaser.Scene {
       .setAlpha(0.6)
       .setDepth(1);
 
+    // 手感特效 / 音效 / 区域
+    const settings = load().settings;
+    const reducedMotion =
+      settings.reducedMotion ||
+      (typeof window !== "undefined" &&
+        window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true);
+    Sfx.ensureContext();
+    Sfx.setVolume(settings.sfxVolume);
+    this.mutedVolume = settings.sfxVolume > 0 ? settings.sfxVolume : 0.8;
+    this.juice = new Juice(this, { screenShake: settings.screenShake, reducedMotion });
+    this.biome = new BiomeController(this, this.bgFar, this.bgMid, reducedMotion);
+    this.wireFx();
+
     // 世界
     this.terrain = new Terrain(this);
     this.pickups = new Pickups(this);
@@ -68,7 +105,7 @@ export class RunScene extends Phaser.Scene {
     // 先放一段确保起点能跑
     const initial = this.generator.ensureUpTo(40);
     for (const p of initial) {
-      this.terrain.buildChunk(p);
+      this.terrain.buildChunk(p, this.biome.tintFor(p.originTileX));
       this.pickups.buildChunk(p);
       this.enemies.buildChunk(p);
     }
@@ -98,11 +135,13 @@ export class RunScene extends Phaser.Scene {
       if (item.kind === "dust") {
         this.dustScore += 1;
         this.events.emit("dust", this.dustScore);
-        this.popPickup(item.x, item.y, COLOR.dust);
+        this.juice.pickupBurst(item.x, item.y, COLOR.dust);
+        Sfx.play("pickupDust");
       } else if (item.kind === "heart") {
         this.player.heal(1);
         this.events.emit("hp", this.player.hp);
-        this.popPickup(item.x, item.y, COLOR.heart);
+        this.juice.pickupBurst(item.x, item.y, COLOR.heart);
+        Sfx.play("pickupHeart");
       }
       item.destroy();
     });
@@ -119,7 +158,9 @@ export class RunScene extends Phaser.Scene {
         playerBody.velocity.y = -320;
         this.dustScore += 3;
         this.events.emit("dust", this.dustScore);
-        this.popPickup(k.x, k.y, COLOR.kobold);
+        this.juice.pickupBurst(k.x, k.y, COLOR.kobold);
+        this.juice.shake(90, 0.006);
+        Sfx.play("bashImpact");
       } else {
         const hit = this.player.takeHit(kBody.position.x + kBody.halfWidth);
         if (hit) this.events.emit("hp", this.player.hp);
@@ -139,10 +180,61 @@ export class RunScene extends Phaser.Scene {
     this.events.emit("distance", 0);
     this.events.emit("dust", 0);
 
+    // M 键静音切换（持久化）
+    this.input.keyboard?.on("keydown-M", () => this.toggleMute());
+
     // Debug
     if (new URLSearchParams(location.search).has("debug")) {
       this.installDebugOverlay();
     }
+  }
+
+  private wireFx(): void {
+    this.events.once("shutdown", () => {
+      this.events.off("fx:jump");
+      this.events.off("fx:state");
+      this.events.off("fx:bashImpact");
+      this.biome?.destroy();
+    });
+    this.events.on("fx:jump", (p: FxJumpEvent) => {
+      Sfx.play(p.kind);
+      this.juice.jumpPuff(p.x, p.y);
+    });
+    this.events.on("fx:state", (p: FxStateEvent) => {
+      if (
+        p.next === "Grounded" &&
+        (p.prev === "Airborne" || p.prev === "Dash" || p.prev === "Glide")
+      ) {
+        this.juice.landPuff(p.x, p.y, p.vy);
+        if (p.vy > 240) Sfx.play("land");
+      } else if (p.next === "Dash") {
+        Sfx.play("dash");
+      } else if (p.next === "Glide") {
+        Sfx.play("glide");
+      } else if (p.next === "Bash") {
+        Sfx.play("bash");
+      } else if (p.next === "Hurt") {
+        Sfx.play("hurt");
+        this.juice.shake(140, 0.009);
+      }
+    });
+    this.events.on("fx:bashImpact", (p: FxPointEvent) => {
+      this.juice.bashImpact(p.x, p.y);
+      this.juice.hitstop(55);
+      Sfx.play("bashImpact");
+    });
+  }
+
+  private toggleMute(): void {
+    const s = load();
+    if (s.settings.sfxVolume > 0) {
+      this.mutedVolume = s.settings.sfxVolume;
+      s.settings.sfxVolume = 0;
+    } else {
+      s.settings.sfxVolume = this.mutedVolume || 0.8;
+    }
+    save(s);
+    Sfx.setVolume(s.settings.sfxVolume);
   }
 
   override update(time: number, delta: number): void {
@@ -168,6 +260,11 @@ export class RunScene extends Phaser.Scene {
     this.enemies.update();
     this.pickups.update(time);
 
+    // 冲刺残影
+    if (this.player.controller.stateName === "Dash") {
+      this.juice.dashGhost(this.player);
+    }
+
     // 生成 / 卸载
     const camRight = this.cameras.main.scrollX + GAME_WIDTH + GAME_WIDTH; // 前方 1 屏 buffer
     const camLeft = this.cameras.main.scrollX - GAME_WIDTH;
@@ -175,7 +272,7 @@ export class RunScene extends Phaser.Scene {
     const leftTileX = Math.floor(camLeft / TILE);
     const newChunks = this.generator.ensureUpTo(targetTileX);
     for (const p of newChunks) {
-      this.terrain.buildChunk(p);
+      this.terrain.buildChunk(p, this.biome.tintFor(p.originTileX));
       this.pickups.buildChunk(p);
       this.enemies.buildChunk(p);
     }
@@ -192,6 +289,7 @@ export class RunScene extends Phaser.Scene {
     if (reached > this.maxDistanceTiles) {
       this.maxDistanceTiles = reached;
       this.events.emit("distance", reached);
+      this.biome.update(reached);
     }
 
     // 摔死
@@ -205,23 +303,12 @@ export class RunScene extends Phaser.Scene {
     if (this.bgMid) this.bgMid.tilePositionX = this.cameras.main.scrollX * 0.35;
   }
 
-  private popPickup(x: number, y: number, color: number): void {
-    const c = this.add.circle(x, y, 4, color, 1).setDepth(40);
-    this.tweens.add({
-      targets: c,
-      scale: 2.5,
-      alpha: 0,
-      duration: 280,
-      ease: "Quad.easeOut",
-      onComplete: () => c.destroy(),
-    });
-  }
-
   private die(): void {
     if (this.dead) return;
     this.dead = true;
-    this.cameras.main.shake(280, 0.012);
-    this.cameras.main.flash(180, 196, 69, 48);
+    this.juice.shake(280, 0.012);
+    this.juice.flash(180, 196, 69, 48);
+    Sfx.play("death");
     this.time.delayedCall(900, () => {
       const result: RunResult = {
         distanceM: this.maxDistanceTiles,

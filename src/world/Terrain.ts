@@ -18,7 +18,10 @@ export class Terrain {
     this.spikes = scene.physics.add.staticGroup();
   }
 
-  buildChunk(p: PlacedChunk): Phaser.GameObjects.GameObject[] {
+  buildChunk(
+    p: PlacedChunk,
+    tint?: { stone: number; spike: number },
+  ): Phaser.GameObjects.GameObject[] {
     const created: Phaser.GameObjects.GameObject[] = [];
     const { template, originTileX } = p;
     for (let y = 0; y < template.terrain.length; y++) {
@@ -31,11 +34,13 @@ export class Terrain {
         if (t === 1) {
           const s = this.stones.create(worldX, worldY, "tile_stone");
           s.setDepth(10);
+          if (tint) s.setTint(tint.stone);
           (s.body as Phaser.Physics.Arcade.StaticBody).updateFromGameObject();
           created.push(s);
         } else if (t === 2) {
           const s = this.spikes.create(worldX, worldY, "tile_spike");
           s.setDepth(10);
+          if (tint) s.setTint(tint.spike);
           // 尖刺的碰撞箱小一些，更友好
           const body = s.body as Phaser.Physics.Arcade.StaticBody;
           body.setSize(TILE - 6, TILE / 2);

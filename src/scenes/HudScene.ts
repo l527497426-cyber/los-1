@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { GAME_WIDTH, COLOR, PLAYER, SCORE } from "../config";
+import { GAME_WIDTH, GAME_HEIGHT, COLOR, PLAYER, SCORE, type BiomePalette } from "../config";
 import type { RunScene } from "./RunScene";
 import { TouchControls } from "../ui/TouchControls";
 import { hasTouch } from "../ui/touchState";
@@ -49,6 +49,7 @@ export class HudScene extends Phaser.Scene {
     run.events.on("hp", (hp: number) => this.updateHp(hp));
     run.events.on("distance", (d: number) => this.updateDist(d));
     run.events.on("dust", (n: number) => this.updateDust(n));
+    run.events.on("biome", (b: BiomePalette) => this.showBiomeBanner(b));
 
     // 触屏控件（只在检测到触屏设备时显示）
     if (hasTouch()) {
@@ -59,6 +60,29 @@ export class HudScene extends Phaser.Scene {
       run.events.off("hp");
       run.events.off("distance");
       run.events.off("dust");
+      run.events.off("biome");
+    });
+  }
+
+  private showBiomeBanner(b: BiomePalette): void {
+    const color = "#" + b.ambientColor.toString(16).padStart(6, "0");
+    const banner = this.add
+      .text(GAME_WIDTH / 2, GAME_HEIGHT * 0.34, `✦  Entering ${b.name}  ✦`, {
+        fontFamily: "Georgia, serif",
+        fontSize: "30px",
+        color,
+        fontStyle: "italic",
+      })
+      .setOrigin(0.5)
+      .setAlpha(0);
+    this.tweens.add({
+      targets: banner,
+      alpha: { from: 0, to: 1 },
+      duration: 500,
+      yoyo: true,
+      hold: 1600,
+      ease: "Sine.easeInOut",
+      onComplete: () => banner.destroy(),
     });
   }
 

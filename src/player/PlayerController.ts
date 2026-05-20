@@ -58,8 +58,15 @@ export class PlayerController {
 
   transition(next: StateName): void {
     if (next === this.stateName) return;
-    this.current.exit(next);
     const prev = this.stateName;
+    this.player.scene.events.emit("fx:state", {
+      prev,
+      next,
+      x: this.player.x,
+      y: this.body.bottom,
+      vy: this.body.velocity.y,
+    });
+    this.current.exit(next);
     this.stateName = next;
     this.current = this.states[next];
     this.current.enter(prev);
@@ -122,9 +129,10 @@ export class PlayerController {
   }
 
   // 触发跳跃（普通 / 二段 / 墙跳由调用方判断）
-  doJump(vy: number): void {
+  doJump(vy: number, kind: "jump" | "doubleJump" | "wallJump" = "jump"): void {
     this.body.velocity.y = vy;
     this.variableJumpFramesLeft = PLAYER.variableJumpWindowFrames;
+    this.player.scene.events.emit("fx:jump", { kind, x: this.player.x, y: this.body.bottom });
   }
 
   forceHurt(frames: number): void {

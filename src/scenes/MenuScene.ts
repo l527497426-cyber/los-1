@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { GAME_WIDTH, GAME_HEIGHT, COLOR } from "../config";
 import { load } from "../persist/LocalSave";
+import { Sfx } from "../fx/Sfx";
 
 export class MenuScene extends Phaser.Scene {
   constructor() {
@@ -60,6 +61,7 @@ export class MenuScene extends Phaser.Scene {
           "← →   move        SPACE   jump (double)",
           "SHIFT  dash        DOWN    glide",
           "X / J  bash        cling to walls auto",
+          "M      mute",
         ].join("\n"),
         {
           fontFamily: "monospace",
@@ -89,7 +91,12 @@ export class MenuScene extends Phaser.Scene {
       ease: "Sine.easeInOut",
     });
 
-    const start = () => this.scene.start("Run");
+    const start = () => {
+      // 必须在用户手势内初始化音频
+      Sfx.ensureContext();
+      Sfx.setVolume(save.settings.sfxVolume);
+      this.scene.start("Run");
+    };
     this.input.keyboard?.once("keydown-SPACE", start);
     this.input.keyboard?.once("keydown-ENTER", start);
     this.input.once("pointerdown", start);

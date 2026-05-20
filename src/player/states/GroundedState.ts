@@ -19,7 +19,7 @@ export class GroundedState implements PlayerState {
 
     // 跳跃
     if (this.ctx.player.inputBuffer.consumeJump()) {
-      this.ctx.doJump(PLAYER.jumpVel);
+      this.ctx.doJump(PLAYER.jumpVel, "jump");
       this.ctx.transition("Airborne");
       return;
     }

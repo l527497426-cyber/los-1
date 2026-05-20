@@ -118,6 +118,8 @@ export class BashState implements PlayerState {
       this.ctx.transition("Airborne");
       return;
     }
+    const tx = this.target.x;
+    const ty = this.target.y;
     this.ctx.body.velocity.x = this.aimDirX * PLAYER.bashPlayerEject;
     this.ctx.body.velocity.y = this.aimDirY * PLAYER.bashPlayerEject;
     // 反向给目标速度（在 RunScene 里若目标有刚体）
@@ -126,7 +128,8 @@ export class BashState implements PlayerState {
       tBody.velocity.x = -this.aimDirX * PLAYER.bashTargetEject;
       tBody.velocity.y = -this.aimDirY * PLAYER.bashTargetEject;
     }
-    this.cleanup();
+    this.cleanup();                       // 先恢复 timeScale，再发命中特效（避免与顿帧冲突）
+    this.ctx.player.scene.events.emit("fx:bashImpact", { x: tx, y: ty });
     this.ctx.airDoubleJumpUsed = false;   // Bash 也回血二段跳，feel 更顺
     this.ctx.transition("Airborne");
   }
