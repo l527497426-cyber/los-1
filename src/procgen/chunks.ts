@@ -13,6 +13,7 @@ function parse(
   const heightTiles = rows.length;
   const widthTiles = Math.max(...rows.map((r) => r.length));
   const terrain: TileId[][] = [];
+  const anchors: { x: number; y: number }[] = [];
   for (let y = 0; y < heightTiles; y++) {
     const row: TileId[] = [];
     const r = rows[y] ?? "";
@@ -20,7 +21,10 @@ function parse(
       const c = r[x] ?? ".";
       if (c === "#") row.push(1);
       else if (c === "^") row.push(2);
-      else row.push(0);
+      else if (c === "o") {
+        row.push(0);
+        anchors.push({ x, y });        // "o" = 悬浮 Bash 锚点
+      } else row.push(0);
     }
     terrain.push(row);
   }
@@ -30,6 +34,7 @@ function parse(
     heightTiles,
     terrain,
     ...meta,
+    bashAnchors: anchors.length > 0 ? anchors : meta.bashAnchors,
   };
 }
 
@@ -281,6 +286,56 @@ export const CHUNKS: ChunkTemplate[] = [
       { x: 8, y: 8, kind: "dust" },
       { x: 12, y: 5, kind: "dust" },
       { x: 16, y: 3, kind: "dust" },
+    ]},
+  ),
+
+  parse(
+    "bash_hop",
+    [
+      "..................",
+      "..................",
+      "..................",
+      "..................",
+      "..................",
+      "..................",
+      "..................",
+      "..................",
+      "..................",
+      "..................",
+      "........o.........",
+      "..................",
+      "..................",
+      "..................",
+      "..................",
+      "######......######",
+    ],
+    { entryY: 14, exitY: 14, difficulty: 3, requires: ["bash"], pickups: [
+      { x: 8, y: 8, kind: "dust" },
+    ]},
+  ),
+
+  parse(
+    "bash_chain",
+    [
+      "........................",
+      "........................",
+      "........................",
+      "........................",
+      "........................",
+      "........................",
+      "........................",
+      "........................",
+      "........................",
+      "............o...........",
+      ".........o.....o........",
+      "......o...........o.....",
+      "........................",
+      "........................",
+      "........................",
+      "####................####",
+    ],
+    { entryY: 14, exitY: 14, difficulty: 4, requires: ["bash"], pickups: [
+      { x: 12, y: 7, kind: "heart" },
     ]},
   ),
 

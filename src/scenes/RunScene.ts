@@ -9,6 +9,7 @@ import { EnemyManager, Kobold } from "../enemies/Kobold";
 import { Juice } from "../fx/Juice";
 import { Sfx } from "../fx/Sfx";
 import { BiomeController } from "../world/Biome";
+import { Anchors, type AnchorSprite } from "../world/Anchors";
 import { load, save } from "../persist/LocalSave";
 
 interface FxStateEvent {
@@ -26,6 +27,7 @@ interface FxJumpEvent {
 interface FxPointEvent {
   x: number;
   y: number;
+  anchor?: boolean;
 }
 
 export interface RunResult {
@@ -41,6 +43,7 @@ export class RunScene extends Phaser.Scene {
   private terrain!: Terrain;
   private pickups!: Pickups;
   private enemies!: EnemyManager;
+  private anchors!: Anchors;
   private juice!: Juice;
   private biome!: BiomeController;
 
@@ -100,6 +103,7 @@ export class RunScene extends Phaser.Scene {
     this.terrain = new Terrain(this);
     this.pickups = new Pickups(this);
     this.enemies = new EnemyManager(this);
+    this.anchors = new Anchors(this);
     this.generator = new Generator({ seed: this.seed });
 
     // 先放一段确保起点能跑
@@ -108,6 +112,7 @@ export class RunScene extends Phaser.Scene {
       this.terrain.buildChunk(p, this.biome.tintFor(p.originTileX));
       this.pickups.buildChunk(p);
       this.enemies.buildChunk(p);
+      this.anchors.buildChunk(p);
     }
 
     // 玩家：放在起点 chunk 入口位置
@@ -220,8 +225,8 @@ export class RunScene extends Phaser.Scene {
     });
     this.events.on("fx:bashImpact", (p: FxPointEvent) => {
       this.juice.bashImpact(p.x, p.y);
-      this.juice.hitstop(55);
-      Sfx.play("bashImpact");
+      if (!p.anchor) this.juice.hitstop(55);   // 锚点链不顿帧，保持流畅
+      Sfx.play(p.anchor ? "bash" : "bashImpact");
     });
   }
 
@@ -240,7 +245,7 @@ export class RunScene extends Phaser.Scene {
   override update(time: number, delta: number): void {
     if (this.dead) return;
 
-    // 玩家可 Bash 目标：所有活的敌人 + 之后可加投射物 / bash anchor
+    // 玩家可 Bash 目标：所有活的敌人 + 可用的悬浮锚点
     this.player.bashCandidates = [];
     this.enemies.group.children.iterate((c) => {
       const k = c as Kobold;
@@ -255,10 +260,26 @@ export class RunScene extends Phaser.Scene {
       }
       return true;
     });
+    this.anchors.group.children.iterate((c) => {
+      const a = c as AnchorSprite;
+      if (a.active && a.available) {
+        this.player.bashCandidates.push({
+          obj: a as unknown as Phaser.GameObjects.GameObject & {
+            x: number;
+            y: number;
+            body?: Phaser.Physics.Arcade.Body | null;
+            isAnchor?: boolean;
+            onBashed?: () => void;
+          },
+        });
+      }
+      return true;
+    });
 
     this.player.update(time, delta);
     this.enemies.update();
     this.pickups.update(time);
+    this.anchors.update(time);
 
     // 冲刺残影
     if (this.player.controller.stateName === "Dash") {
@@ -275,12 +296,14 @@ export class RunScene extends Phaser.Scene {
       this.terrain.buildChunk(p, this.biome.tintFor(p.originTileX));
       this.pickups.buildChunk(p);
       this.enemies.buildChunk(p);
+      this.anchors.buildChunk(p);
     }
     const removed = this.generator.unloadBefore(leftTileX);
     for (const p of removed) {
       this.terrain.unloadChunk(p);
       this.pickups.unloadChunk(p);
       this.enemies.unloadChunk(p);
+      this.anchors.unloadChunk(p);
     }
 
     // 距离推进

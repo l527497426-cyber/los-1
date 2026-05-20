@@ -15,7 +15,15 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   public hasBash: boolean = true;
 
   // 当前可 Bash 目标缓存（每帧 RunScene 喂）
-  public bashCandidates: { obj: Phaser.GameObjects.GameObject & { x: number; y: number; body?: Phaser.Physics.Arcade.Body | null }; }[] = [];
+  public bashCandidates: {
+    obj: Phaser.GameObjects.GameObject & {
+      x: number;
+      y: number;
+      body?: Phaser.Physics.Arcade.Body | null;
+      isAnchor?: boolean;
+      onBashed?: () => void;
+    };
+  }[] = [];
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     super(scene, x, y, "player");

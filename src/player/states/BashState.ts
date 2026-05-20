@@ -7,6 +7,8 @@ type BashTarget = Phaser.GameObjects.GameObject & {
   x: number;
   y: number;
   body?: Phaser.Physics.Arcade.Body | null;
+  isAnchor?: boolean;
+  onBashed?: () => void;
 };
 
 // Bash 流程：
@@ -120,17 +122,23 @@ export class BashState implements PlayerState {
     }
     const tx = this.target.x;
     const ty = this.target.y;
+    const isAnchor = this.target.isAnchor === true;
+    const onBashed = this.target.onBashed;
     this.ctx.body.velocity.x = this.aimDirX * PLAYER.bashPlayerEject;
     this.ctx.body.velocity.y = this.aimDirY * PLAYER.bashPlayerEject;
-    // 反向给目标速度（在 RunScene 里若目标有刚体）
+    // 反向给目标速度（敌人会被弹飞；锚点固定不动）
     const tBody = this.target.body;
-    if (tBody && "velocity" in tBody) {
+    if (!isAnchor && tBody && "velocity" in tBody) {
       tBody.velocity.x = -this.aimDirX * PLAYER.bashTargetEject;
       tBody.velocity.y = -this.aimDirY * PLAYER.bashTargetEject;
     }
     this.cleanup();                       // 先恢复 timeScale，再发命中特效（避免与顿帧冲突）
-    this.ctx.player.scene.events.emit("fx:bashImpact", { x: tx, y: ty });
+    this.ctx.player.scene.events.emit("fx:bashImpact", { x: tx, y: ty, anchor: isAnchor });
     this.ctx.airDoubleJumpUsed = false;   // Bash 也回血二段跳，feel 更顺
+    if (isAnchor) {
+      this.ctx.airBashUsed = false;       // 锚点可连续 bash，实现链式穿越
+      onBashed?.();
+    }
     this.ctx.transition("Airborne");
   }
 
