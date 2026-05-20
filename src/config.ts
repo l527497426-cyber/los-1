@@ -106,6 +106,8 @@ export interface BiomePalette {
   overlayAlpha: number;     // 染色强度（0 = 无）
   vignetteAlpha: number;    // 暗角强度
   silhouette: string;       // 视差远景剪影纹理 key
+  water: number;            // 底部水体颜色（全景探索感）
+  waterfall: number;        // 瀑布高光色
 }
 
 export const BIOMES: BiomePalette[] = [
@@ -125,6 +127,8 @@ export const BIOMES: BiomePalette[] = [
     overlayAlpha: 0.0,
     vignetteAlpha: 0.34,
     silhouette: "sil_swordcoast",
+    water: 0x1c7a82,
+    waterfall: 0xbfeef0,
   },
   {
     id: "feywild",
@@ -142,6 +146,8 @@ export const BIOMES: BiomePalette[] = [
     overlayAlpha: 0.12,
     vignetteAlpha: 0.4,
     silhouette: "sil_feywild",
+    water: 0x2a93a6,
+    waterfall: 0xa9f0e6,
   },
   {
     id: "underdark",
@@ -159,6 +165,8 @@ export const BIOMES: BiomePalette[] = [
     overlayAlpha: 0.3,
     vignetteAlpha: 0.6,
     silhouette: "sil_underdark",
+    water: 0x12586b,
+    waterfall: 0x7fc8e0,
   },
   {
     id: "abyss",
@@ -176,6 +184,8 @@ export const BIOMES: BiomePalette[] = [
     overlayAlpha: 0.28,
     vignetteAlpha: 0.58,
     silhouette: "sil_abyss",
+    water: 0x6a1f2a,
+    waterfall: 0xff9a6a,
   },
 ];
 
@@ -194,4 +204,5 @@ export const RUN = {
   cameraLeadX: 120,
   cameraLerp: 0.12,
   deathFallY: 1200,              // 跌落超过这个 Y 算死
+  cameraZoom: 0.7,               // <1 = 拉远，角色变小、露出更多待探索空间
 };

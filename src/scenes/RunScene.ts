@@ -9,6 +9,7 @@ import { EnemyManager, Kobold } from "../enemies/Kobold";
 import { Juice } from "../fx/Juice";
 import { Sfx } from "../fx/Sfx";
 import { BiomeController } from "../world/Biome";
+import { Backdrop } from "../world/Backdrop";
 import { Lighting } from "../fx/Lighting";
 import { Anchors, type AnchorSprite } from "../world/Anchors";
 import { load, save } from "../persist/LocalSave";
@@ -47,6 +48,7 @@ export class RunScene extends Phaser.Scene {
   private anchors!: Anchors;
   private juice!: Juice;
   private biome!: BiomeController;
+  private backdrop!: Backdrop;
   private lighting!: Lighting;
 
   private seed: number = 0;
@@ -55,10 +57,6 @@ export class RunScene extends Phaser.Scene {
   private startTileX = 0;
   private dead = false;
   private mutedVolume = 0;          // 静音前的音量，用于 M 键还原
-
-  // 背景层（简单视差，纯色 + 横向渐变）
-  private bgFar?: Phaser.GameObjects.Rectangle;
-  private bgMid?: Phaser.GameObjects.TileSprite;
 
   constructor() {
     super("Run");
@@ -72,21 +70,10 @@ export class RunScene extends Phaser.Scene {
     // 物理世界横向无界，纵向给个上下范围
     this.physics.world.setBounds(-1000, -2000, 1_000_000, 4000);
 
-    // 简单背景
+    // 拉远摄像机：角色变小，露出大片待探索的洞窟空间
+    const zoom = RUN.cameraZoom;
+    this.cameras.main.setZoom(zoom);
     this.cameras.main.setBackgroundColor(COLOR.bgSky);
-    this.bgFar = this.add
-      .rectangle(0, GAME_HEIGHT * 0.7, GAME_WIDTH * 4, GAME_HEIGHT, COLOR.bgFar)
-      .setOrigin(0, 0)
-      .setScrollFactor(0.15, 0)
-      .setDepth(0);
-    // 中景：biome 远景剪影（横向视差平铺）
-    this.bgMid = this.add
-      .tileSprite(0, GAME_HEIGHT * 0.38, GAME_WIDTH, 200, BIOMES[0]!.silhouette)
-      .setOrigin(0, 0)
-      .setScrollFactor(0)
-      .setTint(COLOR.bgMid)
-      .setAlpha(0.55)
-      .setDepth(1);
 
     // 手感特效 / 音效 / 区域
     const settings = load().settings;
@@ -98,8 +85,9 @@ export class RunScene extends Phaser.Scene {
     Sfx.setVolume(settings.sfxVolume);
     this.mutedVolume = settings.sfxVolume > 0 ? settings.sfxVolume : 0.8;
     this.juice = new Juice(this, { screenShake: settings.screenShake, reducedMotion });
-    this.biome = new BiomeController(this, this.bgFar, this.bgMid, reducedMotion);
-    this.lighting = new Lighting(this, BIOMES[0]!, reducedMotion);
+    this.backdrop = new Backdrop(this, BIOMES[0]!, zoom, reducedMotion);
+    this.biome = new BiomeController(this, this.backdrop, zoom, reducedMotion);
+    this.lighting = new Lighting(this, BIOMES[0]!, reducedMotion, zoom);
     this.wireFx();
 
     // 世界
@@ -109,8 +97,11 @@ export class RunScene extends Phaser.Scene {
     this.anchors = new Anchors(this);
     this.generator = new Generator({ seed: this.seed });
 
-    // 先放一段确保起点能跑
-    const initial = this.generator.ensureUpTo(40);
+    // 先放一段确保起点能跑。注意：起始 chunk 在 Generator 构造时已入列，
+    // 而 ensureUpTo 只返回"新放的"，所以这里用 allPlaced() 拿到含起点的全部，
+    // 否则起点地面不会被构建，玩家会直接坠空。
+    this.generator.ensureUpTo(40);
+    const initial = this.generator.allPlaced();
     for (const p of initial) {
       this.terrain.buildChunk(p, this.biome.tintFor(p.originTileX));
       this.pickups.buildChunk(p);
@@ -208,6 +199,7 @@ export class RunScene extends Phaser.Scene {
       this.events.off("fx:bashImpact");
       this.events.off("biome");
       this.biome?.destroy();
+      this.backdrop?.destroy();
       this.lighting?.destroy();
       this.physics.world.resume();        // 万一在 hitstop 顿帧期间退出，保证物理恢复
     });
@@ -360,7 +352,7 @@ export class RunScene extends Phaser.Scene {
     }
 
     // 视差刷新
-    if (this.bgMid) this.bgMid.tilePositionX = this.cameras.main.scrollX * 0.35;
+    this.backdrop.update(this.cameras.main.scrollX, delta);
   }
 
   private die(): void {

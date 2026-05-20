@@ -37,6 +37,10 @@ export class BootScene extends Phaser.Scene {
     this.makeSilhouette("sil_underdark", "cave");
     this.makeSilhouette("sil_abyss", "abyss");
 
+    // 全景探索背景：遗迹拱门剪影 + 瀑布
+    this.makeRuinsSilhouette("sil_ruins");
+    this.makeWaterfallTexture("bg_waterfall");
+
     // 1px 白点（粒子）
     this.makePixel("px");
   }
@@ -285,6 +289,81 @@ export class BootScene extends Phaser.Scene {
 
     g.generateTexture(key, w, h);
     g.destroy();
+  }
+
+  // ── 中景遗迹剪影：拱门 + 断柱 + 平台，横向无缝平铺（白色，运行时 tint）──
+  private makeRuinsSilhouette(key: string): void {
+    const w = 512;
+    const h = 260;
+    const baseY = h - 18;
+    const g = this.add.graphics();
+    g.fillStyle(0xffffff, 1);
+    g.fillRect(0, baseY, w, h - baseY);
+
+    // 一个"遗迹单元"：连拱柱廊 + 一根断柱 + 一块悬空平台
+    const unit = (x0: number, span: number) => {
+      const colW = span * 0.05;
+      // 柱廊基座
+      g.fillRect(x0 + span * 0.08, baseY - 70, span * 0.5, 14);
+      // 三根立柱 + 拱
+      for (let i = 0; i < 3; i++) {
+        const cx = x0 + span * (0.12 + i * 0.2);
+        g.fillRect(cx, baseY - 70, colW, 70);
+        // 拱顶（用两个三角近似半圆）
+        if (i < 2) {
+          const ax = cx + colW;
+          const aw = span * 0.2 - colW;
+          g.fillRect(ax, baseY - 84, aw, 10);
+          g.fillTriangle(ax, baseY - 74, ax + aw / 2, baseY - 96, ax + aw, baseY - 74);
+        }
+      }
+      // 断柱
+      g.fillRect(x0 + span * 0.7, baseY - 46, colW * 1.2, 46);
+      g.fillRect(x0 + span * 0.69, baseY - 50, colW * 1.4, 6);
+      // 悬空平台 + 垂藤
+      g.fillRect(x0 + span * 0.78, baseY - 96, span * 0.18, 10);
+      for (let v = 0; v < 3; v++) {
+        const vx = x0 + span * (0.8 + v * 0.05);
+        g.fillRect(vx, baseY - 86, 2, 14 + v * 6);
+      }
+    };
+
+    const cols = 2;
+    const span = w / cols;
+    for (let i = 0; i < cols; i++) unit(i * span, span);
+
+    g.generateTexture(key, w, h);
+    g.destroy();
+  }
+
+  // ── 瀑布条纹：透明底 + 竖直柔光条，横向平铺、纵向滚动 ──
+  private makeWaterfallTexture(key: string): void {
+    const w = 256;
+    const h = 256;
+    const ct = this.textures.createCanvas(key, w, h);
+    if (!ct) return;
+    const ctx = ct.getContext();
+    ctx.clearRect(0, 0, w, h);
+    // 两道瀑布柱
+    const falls = [
+      { x: w * 0.32, width: 26 },
+      { x: w * 0.72, width: 18 },
+    ];
+    for (const f of falls) {
+      const grad = ctx.createLinearGradient(f.x - f.width / 2, 0, f.x + f.width / 2, 0);
+      grad.addColorStop(0, "rgba(255,255,255,0)");
+      grad.addColorStop(0.5, "rgba(255,255,255,0.85)");
+      grad.addColorStop(1, "rgba(255,255,255,0)");
+      ctx.fillStyle = grad;
+      ctx.fillRect(f.x - f.width / 2, 0, f.width, h);
+      // 内部细流
+      ctx.fillStyle = "rgba(255,255,255,0.5)";
+      for (let i = 0; i < 6; i++) {
+        const sx = f.x - f.width / 2 + Math.random() * f.width;
+        ctx.fillRect(sx, Math.random() * h, 1, 30 + Math.random() * 40);
+      }
+    }
+    ct.refresh();
   }
 
   private makePixel(key: string): void {

@@ -36,7 +36,8 @@ const config: Phaser.Types.Core.GameConfig = {
   },
 };
 
-new Phaser.Game(config);
+const game = new Phaser.Game(config);
+(window as unknown as { __game: Phaser.Game }).__game = game;
 
 const boot = document.getElementById("boot");
 if (boot) boot.remove();

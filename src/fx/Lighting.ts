@@ -24,23 +24,27 @@ export class Lighting {
     private scene: Phaser.Scene,
     palette: BiomePalette,
     private reducedMotion: boolean,
+    private zoom = 1,
   ) {
-    // 正片叠底染色层（在世界之上、特效粒子之下）
+    // 正片叠底染色层（在世界之上、特效粒子之下）。
+    // 摄像机拉远（zoom<1）时，scrollFactor(0) 层需放大 1/zoom 才能铺满视口。
     this.overlayColor = palette.overlayColor;
     this.overlayTargetAlpha = palette.overlayAlpha;
     this.overlay = scene.add
-      .rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, palette.overlayColor, 1)
-      .setOrigin(0, 0)
+      .rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, palette.overlayColor, 1)
+      .setOrigin(0.5, 0.5)
       .setScrollFactor(0)
+      .setScale(1 / zoom)
       .setDepth(28)
       .setAlpha(palette.overlayAlpha)
       .setBlendMode(Phaser.BlendModes.MULTIPLY);
 
-    // 主角火焰光圈
+    // 主角火焰光圈（世界坐标，跟随主角）
     this.glow = scene.add
       .image(0, 0, "glow")
       .setDepth(29)
       .setBlendMode(Phaser.BlendModes.ADD)
+      .setAlpha(0.8)
       .setTint(palette.glowColor);
     this.applyGlowSize(palette);
 
@@ -48,12 +52,13 @@ export class Lighting {
     this.vignette = scene.add
       .image(GAME_WIDTH / 2, GAME_HEIGHT / 2, "vignette")
       .setScrollFactor(0)
+      .setScale(1 / zoom)
       .setDepth(90)
       .setAlpha(palette.vignetteAlpha);
   }
 
   private applyGlowSize(palette: BiomePalette): void {
-    // 暗 biome 光圈更大，像火把照亮范围
+    // 暗 biome 光圈更大，像火把照亮范围。世界坐标缩放：拉远后是贴着小角色的紧致光晕。
     const radius = 120 + palette.overlayAlpha * 220;
     this.baseGlowScale = (radius * 2) / 256;
     this.glow.setScale(this.baseGlowScale);

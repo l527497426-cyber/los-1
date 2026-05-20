@@ -30,6 +30,11 @@ export class Generator {
     this.recent.push(starter.id);
   }
 
+  // 当前所有已放置的 chunk（含起始 chunk）。初始 build 用，避免漏掉起点地面。
+  allPlaced(): PlacedChunk[] {
+    return [...this.placed];
+  }
+
   // 调用方传当前需要保证存在内容的 tileX（通常 = 摄像机右沿 + 2 屏 buffer）
   ensureUpTo(targetTileX: number): PlacedChunk[] {
     const newlyPlaced: PlacedChunk[] = [];
