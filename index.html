@@ -2,367 +2,104 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="description" content="LosDesign — Loszo 的个人设计判断框架，可作为 Claude / Cowork 的 skill 安装。" />
-  <meta name="color-scheme" content="light" />
-  <meta property="og:title" content="LosDesign" />
-  <meta property="og:description" content="界面是有层级、有方向、有空间关系的数字空间。" />
-  <meta name="theme-color" content="#FAFAF7" />
-  <title>LosDesign — 一种空间感的判断框架</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23FAFAF7'/%3E%3Ctext x='16' y='22' font-family='Georgia,serif' font-size='20' font-weight='600' text-anchor='middle' fill='%231A1A1A'%3ELD%3C/text%3E%3C/svg%3E" />
-
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+  <meta name="description" content="Fancy Flame — 一关无尽的 Ori 风横版闯关" />
+  <meta name="color-scheme" content="dark" />
+  <meta name="theme-color" content="#0b0a14" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Fancy Flame</title>
+  <link rel="icon" href="/favicon.svg" />
   <style>
-    /* ────────────────────────────────────────────────────────────────
-       LosDesign — single-page site
-       Dogfoods the framework：
-         · Page-level Enter: 0.5s, translateY 16→0
-         · Section stagger:  20–30ms / 模块, 总跨度 ≤ 200ms（按视觉动线）
-         · Button press:     0.1s, scale 1→0.97
-         · Exit ≤ Enter:     hover/leave 不对称
-       ──────────────────────────────────────────────────────────────── */
-
-    :root {
-      --bg:        #FAFAF7;
-      --ink:       #1A1A1A;
-      --ink-soft:  #4A4A47;
-      --muted:     #8A8A85;
-      --line:      rgba(26, 26, 26, 0.10);
-      --accent:    #C44530;       /* 朱砂 / cinnabar — 像印章 */
-      --paper:     #F2EFE7;       /* 安装卡片背景 */
-      --enter-ease: cubic-bezier(0.22, 1, 0.36, 1);
-      --press-ease: cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    * { box-sizing: border-box; }
-    html, body { margin: 0; padding: 0; }
-
-    html {
-      font-size: 16px;
-      -webkit-text-size-adjust: 100%;
-      -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
-    }
-
-    body {
-      background: var(--bg);
-      color: var(--ink);
+    html, body {
+      margin: 0; padding: 0;
+      width: 100%; height: 100%;
+      background: #0b0a14;
+      color: #eae6d5;
       font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB",
-                   "Source Han Sans SC", "Noto Sans CJK SC", "Microsoft YaHei",
-                   "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      font-feature-settings: "kern", "liga";
-      line-height: 1.55;
-      letter-spacing: 0.01em;
-      min-height: 100vh;
-      min-height: 100svh;
-      display: flex;
-      flex-direction: column;
+                   "Source Han Sans SC", "Noto Sans CJK SC", "Segoe UI", sans-serif;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
     }
-
-    /* ─── 上下两条小信息栏 ─── */
-    .meta-bar {
-      padding: 24px 32px;
+    #game {
+      position: fixed;
+      inset: 0;
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      font-size: 12px;
-      letter-spacing: 0.08em;
-      color: var(--muted);
-      text-transform: uppercase;
+      justify-content: center;
     }
-
-    .mark {
-      font-family: Georgia, "Source Han Serif SC", serif;
-      font-size: 17px;
-      font-weight: 600;
-      color: var(--ink);
-      letter-spacing: 0.02em;
-      text-transform: none;
-      display: inline-flex;
-      align-items: baseline;
-      gap: 0.18em;
+    #game canvas {
+      image-rendering: pixelated;
+      max-width: 100%;
+      max-height: 100%;
     }
-    .mark .seal {
-      display: inline-block;
-      width: 6px;
-      height: 6px;
-      background: var(--accent);
-      border-radius: 1px;
-      transform: translateY(-2px);
-    }
-
-    .meta-bar .right {
-      font-variant-numeric: tabular-nums;
-    }
-
-    /* ─── 主内容容器 ─── */
-    main {
-      flex: 1;
-      width: 100%;
-      max-width: 720px;
-      margin: 0 auto;
-      padding: 64px 32px 80px;
+    #boot {
+      position: fixed;
+      inset: 0;
       display: flex;
-      flex-direction: column;
-    }
-
-    /* ─── Hero ─── */
-    .hero {
-      margin-top: 6vh;
-    }
-
-    .hero h1 {
-      margin: 0;
-      font-family: Georgia, "Source Han Serif SC", "Songti SC", serif;
-      font-weight: 600;
-      font-size: clamp(56px, 11vw, 112px);
-      line-height: 1.0;
-      letter-spacing: -0.025em;
-      color: var(--ink);
-    }
-
-    .hero .tagline {
-      margin: 24px 0 0;
-      font-size: clamp(16px, 1.6vw, 19px);
-      line-height: 1.6;
-      color: var(--ink-soft);
-      max-width: 28em;
-    }
-
-    /* ─── 介绍段 ─── */
-    .intro {
-      margin-top: 64px;
-      max-width: 38em;
-    }
-    .intro p {
-      margin: 0;
-      font-size: 16px;
-      line-height: 1.75;
-      color: var(--ink-soft);
-    }
-    .intro em {
-      font-style: normal;
-      color: var(--ink);
-      border-bottom: 1px solid var(--accent);
-      padding-bottom: 1px;
-    }
-
-    /* ─── 一根细线 ─── */
-    .rule {
-      height: 1px;
-      background: var(--line);
-      margin: 56px 0 40px;
-      transform-origin: left center;
-    }
-
-    /* ─── 安装区 ─── */
-    .install {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 16px;
-    }
-
-    .install .label {
-      font-size: 12px;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
       letter-spacing: 0.12em;
-      color: var(--muted);
+      color: #6e6a55;
       text-transform: uppercase;
     }
-
-    .cta {
-      display: inline-flex;
+    #rotate {
+      position: fixed;
+      inset: 0;
+      display: none;
+      flex-direction: column;
       align-items: center;
-      gap: 12px;
-      padding: 14px 22px 14px 22px;
-      background: var(--ink);
-      color: var(--bg);
-      text-decoration: none;
-      font-size: 15px;
-      font-weight: 500;
-      letter-spacing: 0.01em;
-      border-radius: 999px;
-      border: 1px solid var(--ink);
-      cursor: pointer;
-      /* Hover 用 0.18s, leave 0.12s（不对称） */
-      transition: background-color 0.18s var(--enter-ease),
-                  color 0.18s var(--enter-ease),
-                  transform 0.1s var(--press-ease),
-                  box-shadow 0.18s var(--enter-ease);
-      will-change: transform;
+      justify-content: center;
+      gap: 18px;
+      background: #0b0a14;
+      color: #eae6d5;
+      text-align: center;
+      padding: 24px;
+      z-index: 9999;
     }
-    .cta:hover {
-      background: var(--accent);
-      border-color: var(--accent);
-      box-shadow: 0 1px 0 rgba(0,0,0,0.04), 0 8px 24px -12px rgba(196, 69, 48, 0.55);
+    #rotate .icon {
+      font-size: 48px;
+      animation: rot 1.6s ease-in-out infinite;
     }
-    .cta:active {
-      /* Press: 0.1s scale 1 → 0.97 */
-      transform: scale(0.97);
-      transition-duration: 0.1s;
-    }
-    .cta .arrow {
-      width: 14px; height: 14px;
-      transition: transform 0.2s var(--enter-ease);
-    }
-    .cta:hover .arrow {
-      transform: translate(2px, 2px);
-    }
-
-    .install .hint {
+    #rotate p {
       margin: 0;
       font-size: 14px;
-      color: var(--muted);
-      max-width: 32em;
-      line-height: 1.65;
+      letter-spacing: 0.08em;
+      color: #8a8576;
+      max-width: 320px;
+      line-height: 1.6;
     }
-    .install .hint code {
-      font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
-      font-size: 12.5px;
-      background: var(--paper);
-      padding: 2px 6px;
-      border-radius: 4px;
-      color: var(--ink);
+    #rotate p.title {
+      font-family: Georgia, serif;
+      font-size: 22px;
+      color: #f4b03c;
+      letter-spacing: 0.02em;
     }
-
-    /* ─── 页脚（注释这个页面自己用了什么） ─── */
-    footer {
-      margin-top: auto;
-      padding: 32px;
-      border-top: 1px solid var(--line);
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 24px;
-      flex-wrap: wrap;
-      font-size: 12px;
-      color: var(--muted);
-      letter-spacing: 0.04em;
+    @keyframes rot {
+      0%, 100% { transform: rotate(0deg); }
+      50%      { transform: rotate(90deg); }
     }
-    footer .built {
-      font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
-      letter-spacing: 0;
-    }
-    footer .built b {
-      color: var(--ink-soft);
-      font-weight: 500;
-    }
-
-    /* ────────────────────────────────────────────────────────────────
-       Stagger entry — 按视觉动线
-       依次：mark → meta → hero h1 → tagline → intro → rule → cta → hint → footer
-       每个 30ms 间隔，总跨度 ≤ 240ms
-       Enter: duration 0.5s, translateY 16→0
-       ──────────────────────────────────────────────────────────────── */
-    [data-enter] {
-      opacity: 0;
-      transform: translateY(16px);
-      transition: opacity 0.5s var(--enter-ease),
-                  transform 0.5s var(--enter-ease);
-    }
-    [data-enter].rule-init {
-      transform: scaleX(0);
-      transition: transform 0.5s var(--enter-ease), opacity 0.5s var(--enter-ease);
-    }
-    .ready [data-enter] {
-      opacity: 1;
-      transform: translateY(0);
-    }
-    .ready [data-enter].rule-init {
-      transform: scaleX(1);
-    }
-    /* Stagger delays — 视觉动线顺序，30ms 步长 */
-    .ready [data-enter="0"] { transition-delay: 0ms;   }
-    .ready [data-enter="1"] { transition-delay: 30ms;  }
-    .ready [data-enter="2"] { transition-delay: 80ms;  } /* hero 主标题给点喘息 */
-    .ready [data-enter="3"] { transition-delay: 130ms; }
-    .ready [data-enter="4"] { transition-delay: 170ms; }
-    .ready [data-enter="5"] { transition-delay: 200ms; }
-    .ready [data-enter="6"] { transition-delay: 220ms; }
-    .ready [data-enter="7"] { transition-delay: 240ms; }
-
-    /* ─── 移动端 ─── */
-    @media (max-width: 600px) {
-      .meta-bar { padding: 18px 22px; }
-      main { padding: 40px 22px 56px; }
-      .hero { margin-top: 3vh; }
-      .intro { margin-top: 48px; }
-      .rule { margin: 44px 0 32px; }
-      footer { padding: 24px 22px; gap: 12px; }
-    }
-
-    /* ─── 尊重无障碍偏好 ─── */
-    @media (prefers-reduced-motion: reduce) {
-      [data-enter] {
-        opacity: 1 !important;
-        transform: none !important;
-        transition: none !important;
-      }
-      .cta { transition: background-color 0.15s linear; }
-      .cta:active { transform: none; }
+    @media (orientation: portrait) and (max-width: 900px) {
+      #game { display: none; }
+      #boot { display: none; }
+      #rotate { display: flex; }
     }
   </style>
 </head>
-
 <body>
-  <header class="meta-bar">
-    <span class="mark" data-enter="0">
-      LosDesign<span class="seal" aria-hidden="true"></span>
-    </span>
-    <span class="right" data-enter="0">v1.0 · 2026</span>
-  </header>
-
-  <main>
-    <section class="hero">
-      <h1 data-enter="2">LosDesign</h1>
-      <p class="tagline" data-enter="3">
-        界面是有层级、有方向、有空间关系的数字空间。<br />
-        所有动效和交互反馈，都服务于在这个空间里建立感知。
-      </p>
-    </section>
-
-    <section class="intro">
-      <p data-enter="4">
-        这是 Loszo 的个人设计判断框架，提炼自我反复使用的三层判断方式 ——
-        <em>空间语义 → 量级 → 实现底线</em>。装到 Claude / Cowork 里之后，
-        所有 motion、interaction、spatial UI 的判断都会先套这套视角，
-        而不是默认沿用通用 motion-design 套路。
-      </p>
-    </section>
-
-    <div class="rule rule-init" data-enter="5"></div>
-
-    <section class="install">
-      <span class="label" data-enter="5">Install</span>
-
-      <a class="cta" href="los-design.skill" download="los-design.skill" data-enter="6">
-        <span>下载 los-design.skill</span>
-        <svg class="arrow" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-          <path d="M3.5 10.5 L10.5 3.5 M10.5 3.5 H5 M10.5 3.5 V9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </a>
-
-      <p class="hint" data-enter="7">
-        下载后把文件拖进 Cowork 的对话窗口，会弹出「Save skill」按钮一键安装。<br />
-        Claude Code 用户：解压后放进 <code>~/.claude/skills/</code> 即可。
-      </p>
-    </section>
-  </main>
-
-  <footer>
-    <span data-enter="7">Loszo · 2026</span>
-    <span class="built" data-enter="7">
-      <b>Built with itself</b> · enter 0.5s translateY 16→0 · stagger 30ms · press 0.1s scale 0.97
-    </span>
-  </footer>
-
-  <script>
-    // 入场：等到下一帧再加 .ready，确保 transition 能从初始态开始
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        document.documentElement.classList.add('ready');
-      });
-    });
-
-  </script>
+  <div id="boot">Loading…</div>
+  <div id="game"></div>
+  <div id="rotate">
+    <div class="icon">⟳</div>
+    <p class="title">请横屏</p>
+    <p>Fancy Flame 是一款横版游戏，请把手机横过来再玩。</p>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
 </body>
 </html>
