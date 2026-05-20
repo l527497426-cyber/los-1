@@ -25,6 +25,7 @@ export class BiomeController {
     this.current = BIOMES[0]!;
     this.scene.cameras.main.setBackgroundColor(this.current.sky);
     this.bgFar.setFillStyle(this.current.far);
+    this.bgMid.setTexture(this.current.silhouette);
     this.bgMid.setTint(this.current.mid);
     this.setAmbient(this.current);
   }
@@ -48,6 +49,7 @@ export class BiomeController {
 
   private transitionColors(from: BiomePalette, to: BiomePalette): void {
     const cam = this.scene.cameras.main;
+    this.bgMid.setTexture(to.silhouette);
     this.scene.tweens.addCounter({
       from: 0,
       to: 1,

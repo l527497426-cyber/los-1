@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { GAME_WIDTH, GAME_HEIGHT, TILE, RUN, COLOR, SCORE, PLAYER } from "../config";
+import { GAME_WIDTH, GAME_HEIGHT, TILE, RUN, COLOR, SCORE, PLAYER, BIOMES, type BiomePalette } from "../config";
 import { Player } from "../player/Player";
 import { Generator } from "../procgen/Generator";
 import { makeSeed } from "../procgen/rng";
@@ -9,6 +9,7 @@ import { EnemyManager, Kobold } from "../enemies/Kobold";
 import { Juice } from "../fx/Juice";
 import { Sfx } from "../fx/Sfx";
 import { BiomeController } from "../world/Biome";
+import { Lighting } from "../fx/Lighting";
 import { Anchors, type AnchorSprite } from "../world/Anchors";
 import { load, save } from "../persist/LocalSave";
 
@@ -46,6 +47,7 @@ export class RunScene extends Phaser.Scene {
   private anchors!: Anchors;
   private juice!: Juice;
   private biome!: BiomeController;
+  private lighting!: Lighting;
 
   private seed: number = 0;
   private dustScore = 0;
@@ -77,13 +79,13 @@ export class RunScene extends Phaser.Scene {
       .setOrigin(0, 0)
       .setScrollFactor(0.15, 0)
       .setDepth(0);
-    // 中景：用一个矩形带条纹模拟远山
+    // 中景：biome 远景剪影（横向视差平铺）
     this.bgMid = this.add
-      .tileSprite(0, GAME_HEIGHT * 0.55, GAME_WIDTH, GAME_HEIGHT * 0.45, "px")
+      .tileSprite(0, GAME_HEIGHT * 0.38, GAME_WIDTH, 200, BIOMES[0]!.silhouette)
       .setOrigin(0, 0)
-      .setScrollFactor(0.35, 0)
+      .setScrollFactor(0)
       .setTint(COLOR.bgMid)
-      .setAlpha(0.6)
+      .setAlpha(0.55)
       .setDepth(1);
 
     // 手感特效 / 音效 / 区域
@@ -97,6 +99,7 @@ export class RunScene extends Phaser.Scene {
     this.mutedVolume = settings.sfxVolume > 0 ? settings.sfxVolume : 0.8;
     this.juice = new Juice(this, { screenShake: settings.screenShake, reducedMotion });
     this.biome = new BiomeController(this, this.bgFar, this.bgMid, reducedMotion);
+    this.lighting = new Lighting(this, BIOMES[0]!, reducedMotion);
     this.wireFx();
 
     // 世界
@@ -198,22 +201,27 @@ export class RunScene extends Phaser.Scene {
   }
 
   private wireFx(): void {
+    this.events.on("biome", (b: BiomePalette) => this.lighting.setBiome(b));
     this.events.once("shutdown", () => {
       this.events.off("fx:jump");
       this.events.off("fx:state");
       this.events.off("fx:bashImpact");
+      this.events.off("biome");
       this.biome?.destroy();
+      this.lighting?.destroy();
       this.physics.world.resume();        // 万一在 hitstop 顿帧期间退出，保证物理恢复
     });
     this.events.on("fx:jump", (p: FxJumpEvent) => {
       Sfx.play(p.kind);
       this.juice.jumpPuff(p.x, p.y);
+      this.player.squashJump();
     });
     this.events.on("fx:state", (p: FxStateEvent) => {
       if (
         p.next === "Grounded" &&
         (p.prev === "Airborne" || p.prev === "Dash" || p.prev === "Glide")
       ) {
+        if (p.vy > 120) this.player.squashLand(p.vy);
         if (p.vy > 160) this.juice.landPuff(p.x, p.y, p.vy);   // 小跳不扬尘
         if (p.vy > 240) Sfx.play("land");
       } else if (p.next === "Dash") {
@@ -311,6 +319,9 @@ export class RunScene extends Phaser.Scene {
     if (this.player.controller.stateName === "Dash") {
       this.juice.dashGhost(this.player);
     }
+
+    // 火焰光圈跟随
+    this.lighting.update(this.player.x, this.player.y, time);
 
     // 生成 / 卸载
     const camRight = this.cameras.main.scrollX + GAME_WIDTH + GAME_WIDTH; // 前方 1 屏 buffer

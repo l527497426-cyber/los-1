@@ -100,6 +100,12 @@ export interface BiomePalette {
   spikeTint: number;
   ambient: AmbientKind;
   ambientColor: number;
+  // D&D 氛围光照
+  glowColor: number;        // 主角火焰光圈颜色
+  overlayColor: number;     // 全屏正片叠底染色（越暗越有地牢感）
+  overlayAlpha: number;     // 染色强度（0 = 无）
+  vignetteAlpha: number;    // 暗角强度
+  silhouette: string;       // 视差远景剪影纹理 key
 }
 
 export const BIOMES: BiomePalette[] = [
@@ -114,6 +120,11 @@ export const BIOMES: BiomePalette[] = [
     spikeTint: 0xffffff,
     ambient: "embers",
     ambientColor: 0xf4b03c,
+    glowColor: 0xff9a3c,
+    overlayColor: 0x1a1830,
+    overlayAlpha: 0.0,
+    vignetteAlpha: 0.34,
+    silhouette: "sil_swordcoast",
   },
   {
     id: "feywild",
@@ -126,6 +137,11 @@ export const BIOMES: BiomePalette[] = [
     spikeTint: 0xe88ad8,
     ambient: "spores",
     ambientColor: 0x7be0d6,
+    glowColor: 0x9ad0ff,
+    overlayColor: 0x3a2a52,
+    overlayAlpha: 0.12,
+    vignetteAlpha: 0.4,
+    silhouette: "sil_feywild",
   },
   {
     id: "underdark",
@@ -138,6 +154,11 @@ export const BIOMES: BiomePalette[] = [
     spikeTint: 0xb585e0,
     ambient: "motes",
     ambientColor: 0x6ea0e0,
+    glowColor: 0xffae5e,
+    overlayColor: 0x0a1430,
+    overlayAlpha: 0.3,
+    vignetteAlpha: 0.6,
+    silhouette: "sil_underdark",
   },
   {
     id: "abyss",
@@ -150,6 +171,11 @@ export const BIOMES: BiomePalette[] = [
     spikeTint: 0xff8a6a,
     ambient: "embers",
     ambientColor: 0xff6b3a,
+    glowColor: 0xff6b3a,
+    overlayColor: 0x2a0810,
+    overlayAlpha: 0.28,
+    vignetteAlpha: 0.58,
+    silhouette: "sil_abyss",
   },
 ];
 

@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { GAME_WIDTH, GAME_HEIGHT } from "../config";
 import { load, recordRun } from "../persist/LocalSave";
 import { hasTouch } from "../ui/touchState";
+import { drawRunicFrame, emberGlow } from "../ui/decor";
 import type { RunResult } from "./RunScene";
 
 export class DeathScene extends Phaser.Scene {
@@ -19,8 +20,9 @@ export class DeathScene extends Phaser.Scene {
     const cy = GAME_HEIGHT / 2;
 
     this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x0b0a14, 0.7).setOrigin(0, 0);
+    drawRunicFrame(this, 0xc44530);
 
-    this.add
+    const fell = this.add
       .text(cx, cy - 150, "you fell", {
         fontFamily: "Georgia, serif",
         fontSize: "44px",
@@ -28,6 +30,7 @@ export class DeathScene extends Phaser.Scene {
         fontStyle: "italic",
       })
       .setOrigin(0.5);
+    emberGlow(fell, "#c44530");
 
     this.add
       .text(cx, cy - 80, `${result.distanceM} m`, {

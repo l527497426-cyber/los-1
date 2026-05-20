@@ -8,6 +8,7 @@ export class Kobold extends Phaser.Physics.Arcade.Sprite {
   private speed = 60;
   private spawnX: number;
   private patrolRange = 96;        // 离生成点最远走多远（防止走出平台/掉崖）
+  private wobblePhase = Math.random() * Math.PI * 2;
   public alive = true;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
@@ -41,6 +42,8 @@ export class Kobold extends Phaser.Physics.Arcade.Sprite {
     ) {
       this.flip();
     }
+    // 走路摇摆
+    this.setAngle(Math.sin(this.scene.time.now / 110 + this.wobblePhase) * 6);
   }
 
   private flip(): void {

@@ -15,6 +15,10 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   public hasDash: boolean = true;
   public hasBash: boolean = true;
 
+  // 挤压拉伸（弹性回 1）
+  private sx = 1;
+  private sy = 1;
+
   // 当前可 Bash 目标缓存（每帧 RunScene 喂）
   public bashCandidates: {
     obj: Phaser.GameObjects.GameObject & {
@@ -43,7 +47,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.controller = new PlayerController(this);
   }
 
-  override update(_time: number, delta: number): void {
+  override update(time: number, delta: number): void {
     if (!this.alive) return;
     this.controller.update(delta);
 
@@ -54,10 +58,36 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       this.setAlpha(this.iframesLeft % 6 < 3 ? 0.3 : 1);
       if (this.iframesLeft === 0) this.setAlpha(1);
     }
+
+    // 弹性回正
+    this.sx += (1 - this.sx) * 0.2;
+    this.sy += (1 - this.sy) * 0.2;
+    // 火苗摇曳：仅地面时轻微摆动（只摆宽度+旋转，纵向保持稳定不扰动落地判定）
+    if (this.controller.stateName === "Grounded") {
+      const sway = Math.sin(time / 120) * 0.04;
+      this.setScale(this.sx + sway, this.sy);
+      this.setAngle(Math.sin(time / 150) * 3);   // 旋转不影响 Arcade 碰撞箱
+    } else {
+      this.setAngle(0);
+      this.setScale(this.sx, this.sy);
+    }
   }
 
   grantBashGrace(frames: number): void {
     this.bashGraceLeft = frames;
+  }
+
+  // 起跳：纵向拉长（幅度温和，避免明显改变碰撞箱）
+  squashJump(): void {
+    this.sx = 0.92;
+    this.sy = 1.12;
+  }
+
+  // 落地：横向压扁（按下落速度加重）
+  squashLand(vy: number): void {
+    const k = Phaser.Math.Clamp(vy / 900, 0.06, 0.16);
+    this.sx = 1 + k;
+    this.sy = 1 - k;
   }
 
   takeHit(fromX: number): boolean {

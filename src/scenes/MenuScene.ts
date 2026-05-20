@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { GAME_WIDTH, GAME_HEIGHT, COLOR } from "../config";
 import { load } from "../persist/LocalSave";
 import { Sfx } from "../fx/Sfx";
+import { drawRunicFrame, emberGlow } from "../ui/decor";
 
 export class MenuScene extends Phaser.Scene {
   constructor() {
@@ -17,8 +18,10 @@ export class MenuScene extends Phaser.Scene {
     bg.fillGradientStyle(COLOR.bgSky, COLOR.bgSky, COLOR.bgNear, COLOR.bgMid, 1);
     bg.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
 
+    drawRunicFrame(this);
+
     // 标题
-    this.add
+    const title = this.add
       .text(cx, GAME_HEIGHT * 0.32, "FANCY FLAME", {
         fontFamily: "Georgia, serif",
         fontSize: "64px",
@@ -26,6 +29,7 @@ export class MenuScene extends Phaser.Scene {
         fontStyle: "bold",
       })
       .setOrigin(0.5);
+    emberGlow(title);
 
     this.add
       .text(cx, GAME_HEIGHT * 0.32 + 56, "one endless run · D&D embers", {
