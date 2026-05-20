@@ -137,8 +137,8 @@ export class BashState implements PlayerState {
     this.ctx.airDoubleJumpUsed = false;   // Bash 也回血二段跳，feel 更顺
     if (isAnchor) {
       this.ctx.airBashUsed = false;       // 锚点可连续 bash，实现链式穿越
-      onBashed?.();
     }
+    onBashed?.();                         // 锚点：刷新；敌人：消灭 + 加分
     this.ctx.transition("Airborne");
   }
 

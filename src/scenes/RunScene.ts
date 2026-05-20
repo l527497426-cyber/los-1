@@ -201,7 +201,7 @@ export class RunScene extends Phaser.Scene {
       this.biome?.destroy();
       this.backdrop?.destroy();
       this.lighting?.destroy();
-      this.physics.world.resume();        // 万一在 hitstop 顿帧期间退出，保证物理恢复
+      this.physics.world?.resume();       // 万一在 hitstop 顿帧期间退出，保证物理恢复（世界可能已销毁）
     });
     this.events.on("fx:jump", (p: FxJumpEvent) => {
       Sfx.play(p.kind);
@@ -276,13 +276,15 @@ export class RunScene extends Phaser.Scene {
     this.enemies.group.children.iterate((c) => {
       const k = c as Kobold;
       if (k.active && k.alive) {
-        this.player.bashCandidates.push({
-          obj: k as unknown as Phaser.GameObjects.GameObject & {
-            x: number;
-            y: number;
-            body?: Phaser.Physics.Arcade.Body | null;
-          },
-        });
+        const obj = k as unknown as Phaser.GameObjects.GameObject & {
+          x: number;
+          y: number;
+          body?: Phaser.Physics.Arcade.Body | null;
+          isAnchor?: boolean;
+          onBashed?: () => void;
+        };
+        obj.onBashed = () => this.defeatEnemyByBash(k);
+        this.player.bashCandidates.push({ obj });
       }
       return true;
     });
@@ -353,6 +355,15 @@ export class RunScene extends Phaser.Scene {
 
     // 视差刷新
     this.backdrop.update(this.cameras.main.scrollX, delta);
+  }
+
+  // Bash 命中敌人：消灭 + 加分 + 碎屑（fx:bashImpact 已负责顿帧/音效）
+  private defeatEnemyByBash(k: Kobold): void {
+    if (!k.alive) return;
+    k.defeat();
+    this.dustScore += 3;
+    this.events.emit("dust", this.dustScore);
+    this.juice.pickupBurst(k.x, k.y, COLOR.kobold);
   }
 
   private die(): void {

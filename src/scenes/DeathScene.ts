@@ -78,7 +78,7 @@ export class DeathScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     const nameText = this.add
-      .text(cx, cy + 76, this.nickname || "tap to type", {
+      .text(cx, cy + 76, this.nickname || "click to set name", {
         fontFamily: "monospace",
         fontSize: "20px",
         color: "#eae6d5",
@@ -93,29 +93,24 @@ export class DeathScene extends Phaser.Scene {
       const v = window.prompt("nickname (max 16)", this.nickname);
       if (v != null) {
         this.nickname = v.replace(/[^A-Za-z0-9_\- ]/g, "").slice(0, 16);
-        nameText.setText(this.nickname || "tap to type");
+        nameText.setText(this.nickname || "click to set name");
       }
     };
     nameText.on("pointerdown", promptNick);
 
+    // 键盘快捷键：R / Enter 重开，Esc 回菜单。昵称改为点击输入框编辑，
+    // 这样字母键不会被昵称输入吞掉，R 能可靠地重新开始。
     this.input.keyboard?.on("keydown", (e: KeyboardEvent) => {
-      if (e.key === "Backspace") {
-        this.nickname = this.nickname.slice(0, -1);
-      } else if (e.key === "Enter") {
+      if (e.key === "Enter" || e.key === "r" || e.key === "R") {
         this.confirm(result);
-        return;
       } else if (e.key === "Escape") {
         this.scene.start("Menu");
-        return;
-      } else if (e.key.length === 1 && /^[A-Za-z0-9_\- ]$/.test(e.key) && this.nickname.length < 16) {
-        this.nickname += e.key;
       }
-      nameText.setText(this.nickname || "tap to type");
     });
 
     // 触屏：底部两个大按钮
     const retryBtn = this.add
-      .text(cx - 90, GAME_HEIGHT - 60, "  RETRY  ", {
+      .text(cx - 90, GAME_HEIGHT - 60, "  RETRY (R)  ", {
         fontFamily: "monospace",
         fontSize: "18px",
         color: "#0b0a14",
@@ -138,16 +133,19 @@ export class DeathScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     menuBtn.on("pointerup", () => this.scene.start("Menu"));
 
-    // 触屏提示
-    if (hasTouch()) {
-      this.add
-        .text(cx, GAME_HEIGHT - 100, "tap nickname above to edit", {
+    // 底部提示：触屏点昵称编辑；键盘 R/Enter 重开、Esc 回菜单
+    this.add
+      .text(
+        cx,
+        GAME_HEIGHT - 100,
+        hasTouch() ? "tap nickname above to edit" : "R / Enter  retry      Esc  menu      click name to edit",
+        {
           fontFamily: "monospace",
           fontSize: "11px",
           color: "#8a8576",
-        })
-        .setOrigin(0.5);
-    }
+        },
+      )
+      .setOrigin(0.5);
 
     this.tweens.add({
       targets: nameText,
