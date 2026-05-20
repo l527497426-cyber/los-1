@@ -2,14 +2,17 @@ import Phaser from "phaser";
 import { TILE } from "../config";
 import type { PlacedChunk } from "../procgen/types";
 
-// 简单巡逻：在自己生成的水平范围里左右走，碰墙折返；遇到悬崖也折返。
+// 简单巡逻：在生成点附近的水平范围里左右走，碰墙或到达巡逻边界折返。
 export class Kobold extends Phaser.Physics.Arcade.Sprite {
   private dir: -1 | 1 = -1;
   private speed = 60;
+  private spawnX: number;
+  private patrolRange = 96;        // 离生成点最远走多远（防止走出平台/掉崖）
   public alive = true;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     super(scene, x, y, "kobold");
+    this.spawnX = x;
     scene.add.existing(this);
     scene.physics.add.existing(this);
     const body = this.body as Phaser.Physics.Arcade.Body;
@@ -27,13 +30,17 @@ export class Kobold extends Phaser.Physics.Arcade.Sprite {
     if (!this.alive) return;
     const body = this.body as Phaser.Physics.Arcade.Body;
     body.setVelocityX(this.dir * this.speed);
-    // 碰墙：折返
+    // 碰墙折返
     if ((this.dir === -1 && body.blocked.left) || (this.dir === 1 && body.blocked.right)) {
       this.flip();
     }
-    // 悬崖折返：脚下下一 tile 没东西时翻头
-    // 用 onGround + 前方一个 tile 处 raycast 简化为：前方稍远位置无地面就翻
-    // 这里偷懒：朝向偏移后没在 blocked.down 就别动
+    // 巡逻边界折返（不依赖地形检测，可靠地避免走出平台）
+    if (
+      (this.dir === -1 && this.x <= this.spawnX - this.patrolRange) ||
+      (this.dir === 1 && this.x >= this.spawnX + this.patrolRange)
+    ) {
+      this.flip();
+    }
   }
 
   private flip(): void {

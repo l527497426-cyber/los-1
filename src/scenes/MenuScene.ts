@@ -60,8 +60,8 @@ export class MenuScene extends Phaser.Scene {
         [
           "← →   move        SPACE   jump (double)",
           "SHIFT  dash        DOWN    glide",
-          "X / J  bash        cling to walls auto",
-          "M      mute",
+          "X / J  bash enemies & glowing orbs to chain across gaps",
+          "M      mute        ·  walls are clung to automatically",
         ].join("\n"),
         {
           fontFamily: "monospace",

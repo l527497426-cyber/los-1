@@ -128,6 +128,7 @@ export class RunScene extends Phaser.Scene {
 
     // 尖刺：重叠即扣血
     this.physics.add.overlap(this.player, this.terrain.spikes, (_p, spike) => {
+      if (this.player.controller.stateName === "Bash") return;
       const s = spike as Phaser.GameObjects.GameObject & { x: number };
       this.player.takeHit(s.x);
       if (!this.player.alive) this.die();
@@ -155,6 +156,8 @@ export class RunScene extends Phaser.Scene {
     this.physics.add.overlap(this.player, this.enemies.group, (_p, e) => {
       const k = e as Kobold;
       if (!k.alive) return;
+      // Bash 抓取期间玩家正贴在敌人身上，不算接触
+      if (this.player.controller.stateName === "Bash") return;
       // 从上方踩：消灭敌人 + 反弹
       const playerBody = this.player.body as Phaser.Physics.Arcade.Body;
       const kBody = k.body as Phaser.Physics.Arcade.Body;
@@ -200,6 +203,7 @@ export class RunScene extends Phaser.Scene {
       this.events.off("fx:state");
       this.events.off("fx:bashImpact");
       this.biome?.destroy();
+      this.physics.world.resume();        // 万一在 hitstop 顿帧期间退出，保证物理恢复
     });
     this.events.on("fx:jump", (p: FxJumpEvent) => {
       Sfx.play(p.kind);
@@ -210,7 +214,7 @@ export class RunScene extends Phaser.Scene {
         p.next === "Grounded" &&
         (p.prev === "Airborne" || p.prev === "Dash" || p.prev === "Glide")
       ) {
-        this.juice.landPuff(p.x, p.y, p.vy);
+        if (p.vy > 160) this.juice.landPuff(p.x, p.y, p.vy);   // 小跳不扬尘
         if (p.vy > 240) Sfx.play("land");
       } else if (p.next === "Dash") {
         Sfx.play("dash");
@@ -240,6 +244,28 @@ export class RunScene extends Phaser.Scene {
     }
     save(s);
     Sfx.setVolume(s.settings.sfxVolume);
+    this.showToast(s.settings.sfxVolume > 0 ? "♪ sound on" : "♪ muted");
+  }
+
+  private showToast(msg: string): void {
+    const t = this.add
+      .text(GAME_WIDTH / 2, GAME_HEIGHT - 60, msg, {
+        fontFamily: "monospace",
+        fontSize: "16px",
+        color: "#eae6d5",
+        backgroundColor: "rgba(11,10,20,0.6)",
+        padding: { x: 8, y: 4 },
+      })
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(120);
+    this.tweens.add({
+      targets: t,
+      alpha: { from: 1, to: 0 },
+      duration: 900,
+      ease: "Quad.easeIn",
+      onComplete: () => t.destroy(),
+    });
   }
 
   override update(time: number, delta: number): void {

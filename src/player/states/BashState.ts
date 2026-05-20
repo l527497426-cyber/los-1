@@ -96,9 +96,8 @@ export class BashState implements PlayerState {
       this.indicator.fillCircle(this.ctx.player.x, this.ctx.player.y, 14);
     }
 
-    // 触发弹射的两种方式：失去 bash 键 / 达到时间膨胀上限
-    const release = !(input.jumpHeld) && this.ctx.player.inputBuffer.state.bashPressedThisFrame;
-    if (this.framesLeft <= 0 || this.ctx.player.inputBuffer.consumeBash() || release) {
+    // 弹射触发：再次按 Bash 立即发射，或瞄准窗口耗尽自动发射
+    if (this.framesLeft <= 0 || this.ctx.player.inputBuffer.consumeBash()) {
       this.eject();
     }
   }
@@ -133,6 +132,7 @@ export class BashState implements PlayerState {
       tBody.velocity.y = -this.aimDirY * PLAYER.bashTargetEject;
     }
     this.cleanup();                       // 先恢复 timeScale，再发命中特效（避免与顿帧冲突）
+    this.ctx.player.grantBashGrace(10);   // 弹开瞬间不被原目标蹭伤
     this.ctx.player.scene.events.emit("fx:bashImpact", { x: tx, y: ty, anchor: isAnchor });
     this.ctx.airDoubleJumpUsed = false;   // Bash 也回血二段跳，feel 更顺
     if (isAnchor) {

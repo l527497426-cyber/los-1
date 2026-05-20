@@ -8,6 +8,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   public controller: PlayerController;
   public hp: number = PLAYER.maxHp;
   public iframesLeft: number = 0;
+  public bashGraceLeft: number = 0;     // Bash 弹射后的短暂免伤，防止刚弹开就被原目标蹭到
   public alive: boolean = true;
   public facing: 1 | -1 = 1;
   public hasDoubleJump: boolean = true;
@@ -46,6 +47,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     if (!this.alive) return;
     this.controller.update(delta);
 
+    if (this.bashGraceLeft > 0) this.bashGraceLeft--;
+
     if (this.iframesLeft > 0) {
       this.iframesLeft--;
       this.setAlpha(this.iframesLeft % 6 < 3 ? 0.3 : 1);
@@ -53,8 +56,13 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     }
   }
 
+  grantBashGrace(frames: number): void {
+    this.bashGraceLeft = frames;
+  }
+
   takeHit(fromX: number): boolean {
     if (!this.alive) return false;
+    if (this.bashGraceLeft > 0) return false;
     if (this.iframesLeft > 0) return false;
     this.hp -= 1;
     this.iframesLeft = PLAYER.iframeFrames;
